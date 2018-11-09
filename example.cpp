@@ -55,6 +55,9 @@
 #include <igl/copyleft/tetgen/mesh_with_skeleton.h>
 #include <igl/copyleft/tetgen/tetrahedralize.h>
 
+#include <igl/ambient_occlusion.h>
+#include <igl/per_vertex_normals.h>
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -684,6 +687,41 @@ bool save_mesh()
   }
 }
 
+bool save_occlusion()
+{
+  using namespace std;
+  using namespace igl;
+  using namespace Eigen;
+  MatrixXd T;
+  forward_kinematics(C,BE,P,s.mouse.rotations(),T);
+  MatrixXd U = M*T;
+
+  MatrixXd UN;
+  igl::per_vertex_normals(U,F,UN);
+  VectorXd AO;
+  ambient_occlusion(U,F,U,UN,500,AO);
+
+  string output_filename;
+  next_filename(output_pose_prefix,4,".ao",output_filename);
+
+  FILE * obj_file = fopen(output_filename.c_str(),"w");
+
+  // Loop over AO
+  for(int i = 0;i<(int)AO.rows();i++)
+  {
+    stringstream s;
+    s << AO(i) << endl;
+    fprintf(obj_file,s.str().c_str());
+  }
+
+  fclose(obj_file);
+
+  cout<<GREENGIN("Current ambient occlusion written to "+
+    output_filename+".")<<endl;
+
+  return true;
+}
+
 void key(unsigned char key, int mouse_x, int mouse_y)
 {
   using namespace std;
@@ -720,6 +758,12 @@ void key(unsigned char key, int mouse_x, int mouse_y)
     case 'e':
     {
       s.mouse.set_widget_mode(MouseController::WIDGET_MODE_ROTATE);
+      break;
+    }
+    case 'o':
+    {
+      save_pose();
+      save_occlusion();
       break;
     }
     case 'R':
